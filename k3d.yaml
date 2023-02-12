@@ -1,0 +1,44 @@
+# Reference: https://k3d.io/v5.4.6/usage/configfile/#all-options-example
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+servers: 1
+agent: 2
+network: k3d-network
+
+kubeAPI:
+  hostIP: 0.0.0.0
+  hostPort: "6443"
+ports:
+- port: 30000:80 # Istio IngressGateway LoadBalancer NodePort
+  nodeFilters:
+  - loadbalancer
+volumes: # repeatable flags are represented as YAML lists
+  - volume: /mnt/sdcard/k8s-data/pod-data:/data #TODO arg  same as `--volume '/my/host/path:/path/in/node@server:0;agent:*'`
+    nodeFilters:
+      - server:0
+      - agent:*
+registries: # define how registries should be created or used
+  create: # creates a default registry to be used with the cluster; same as `--registry-create registry.localhost`
+    name: registry.localhost
+    host: "0.0.0.0"
+    hostPort: "5000"
+    volumes:
+      - /mnt/sdcard/k8s-data/registry-data:/var/lib/registry # persist registry data locally
+options:
+  k3d:
+    wait: true
+    timeout: 1m0s
+    disableLoadbalancer: false
+    disableImageVolume: false
+    disableRollback: false
+  k3s:
+    extraArgs:
+    - arg: --tls-san=127.0.0.1
+      nodeFilters:
+      - server:*
+    - arg: --tls-san=chromebox
+      nodeFilters:
+      - server:*
+    - arg: --tls-san=chromebox.lan
+      nodeFilters:
+      - server:*
