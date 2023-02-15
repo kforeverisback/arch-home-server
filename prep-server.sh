@@ -19,8 +19,8 @@ $RM -r yay-bin
 # Now install some terminal tools
 mkdir -p ~/.local/bin/
 yay -S fd bat exa procs bttom ranger sd dust toeki tldr --noconfirm
-cp .zshrc-* ~/
-echo 'source ~/.zshrc-post' >> ~/.zshrc
+cp zshrc-* ~/
+echo 'source ~/zshrc-post' >> ~/.zshrc
 curl -s https://cht.sh/:cht.sh | sudo tee /usr/local/bin/cht.sh > /dev/null && sudo chmod +x /usr/local/bin/cht.sh
 ln -s /usr/local/bin/cht.sh ~/.local/bin
 
@@ -41,6 +41,10 @@ sudo usermod -aG docker "$USER"
 # Enable docker at boot
 sudo systemctl enable docker.service
 sudo systemctl enable containerd.service
+
+echo "           K3d kubernetes cluster           "
+echo "--------------------------------------------"
+yay -S rancher-k3d-bin --noconfirm
 
 
 echo "            Wireguard VPN Tools             "
