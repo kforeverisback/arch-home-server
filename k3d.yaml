@@ -2,12 +2,12 @@
 apiVersion: k3d.io/v1alpha4
 kind: Simple
 servers: 1
-agent: 2
+  #agent: 2
 network: k3d-network
 
-kubeAPI:
-  hostIP: 0.0.0.0
-  hostPort: "6443"
+  #kubeAPI:
+  #hostIP: 0.0.0.0
+  #hostPort: "6443"
 ports:
 - port: 30000:80 # Istio IngressGateway LoadBalancer NodePort
   nodeFilters:
@@ -42,3 +42,7 @@ options:
     - arg: --tls-san=chromebox.lan
       nodeFilters:
       - server:*
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+  runtime: {}

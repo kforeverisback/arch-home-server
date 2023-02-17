@@ -18,9 +18,10 @@ $RM -r yay-bin
 
 # Now install some terminal tools
 mkdir -p ~/.local/bin/
-yay -S fd bat exa procs bttom ranger sd dust toeki tldr --noconfirm
-cp zshrc-* ~/
+yay -S fd bat exa procs starship bottom ranger sd dust tokei tldr git-delta git-extras --noconfirm
+cp zshrc-post ~/
 echo 'source ~/zshrc-post' >> ~/.zshrc
+# Install chtsh
 curl -s https://cht.sh/:cht.sh | sudo tee /usr/local/bin/cht.sh > /dev/null && sudo chmod +x /usr/local/bin/cht.sh
 ln -s /usr/local/bin/cht.sh ~/.local/bin
 

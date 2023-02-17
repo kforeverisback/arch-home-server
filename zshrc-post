@@ -118,4 +118,4 @@ mcd () { mkdir -p "$1" && cd "$1" || exit; }        # mcd:          Makes new Di
 ## Source k3d completion
 # shellcheck disable=SC1090
 [[ $(command -v k3d) ]] && . <(k3d completion zsh)
-
+[[ $(command -v kubectl) ]] && . <(kubectl completion zsh)

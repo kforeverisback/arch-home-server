@@ -1,0 +1,60 @@
+format = """
+$username\
+$hostname\
+$localip\
+$shlvl\
+$kubernetes\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_metrics\
+$git_status\
+$docker_context\
+$package\
+$c\
+$cmake\
+$daml\
+$dart\
+$deno\
+$golang\
+$helm\
+$julia\
+$lua\
+$nodejs\
+$python\
+$rust\
+$vagrant\
+$nix_shell\
+$conda\
+$memory_usage\
+$azure\
+$env_var\
+$custom\
+$sudo\
+$cmd_duration\
+$line_break\
+$jobs\
+$battery\
+$time\
+$status\
+$os\
+$container\
+$shell\
+$character"""
+
+[docker_context]
+disabled = false
+only_with_files = true
+
+[kubernetes]
+format = 'on [Γ¢╡ $context](dimmed green) '
+#format = 'on [Γ¢╡ $context \($namespace\)](dimmed green) '
+disabled = false
+
+[kubernetes.context_aliases]
+"dev.local.cluster.k8s" = "dev"
+
+[character]
+success_symbol = '[❯](bold purple)[❯](bold yellow)[❯](bold green)'
+error_symbol = '[❯](bold red)[❯](bold red)[❯](bold red)'
