@@ -2,28 +2,34 @@
 apiVersion: k3d.io/v1alpha4
 kind: Simple
 servers: 1
-  #agent: 2
+  agent: 2
 network: k3d-network
-
   #kubeAPI:
   #hostIP: 0.0.0.0
   #hostPort: "6443"
 ports:
-- port: 30000:80 # Istio IngressGateway LoadBalancer NodePort
+- port: 30000:80 # Istio/traefik IngressGateway LoadBalancer NodePort
   nodeFilters:
   - loadbalancer
 volumes: # repeatable flags are represented as YAML lists
-  - volume: /mnt/sdcard/k8s-data/pod-data:/data #TODO arg  same as `--volume '/my/host/path:/path/in/node@server:0;agent:*'`
+  - volume: $POD_DATA:/data #TODO arg  same as `--volume '/my/host/path:/path/in/node@server:0;agent:*'`
     nodeFilters:
       - server:0
       - agent:*
 registries: # define how registries should be created or used
-  create: # creates a default registry to be used with the cluster; same as `--registry-create registry.localhost`
-    name: registry.localhost
-    host: "0.0.0.0"
-    hostPort: "5000"
-    volumes:
-      - /mnt/sdcard/k8s-data/registry-data:/var/lib/registry # persist registry data locally
+  # create: # creates a default registry to be used with the cluster; same as `--registry-create registry.localhost`
+  #   name: registry.localhost
+  #   host: "0.0.0.0"
+  #   hostPort: "5000"
+  #   volumes:
+  #     - /mnt/sdcard/k8s-data/registry-data:/var/lib/registry # persist registry data locally
+  config: | # define contents of the `registries.yaml` file (or reference a file); same as `--registry-config /path/to/config.yaml`
+    mirrors:
+      "docker.io":
+        endpoint:
+          - http://k3d-registry.localhost:5000
+  use:
+    - k3d-registry.localhost:5000 # some other k3d-managed registry; same as `--registry-use 'k3d-myotherregistry:5000'`
 options:
   k3d:
     wait: true

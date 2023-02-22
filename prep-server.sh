@@ -18,7 +18,7 @@ $RM -r yay-bin
 
 # Now install some terminal tools
 mkdir -p ~/.local/bin/
-yay -S fd bat exa procs starship bottom ranger sd dust tokei tldr git-delta git-extras --noconfirm
+yay -S fd bat exa procs starship bottom ranger sd dust tokei tealdeer git-delta git-extras --noconfirm
 cp zshrc-post ~/
 echo 'source ~/zshrc-post' >> ~/.zshrc
 # Install chtsh
