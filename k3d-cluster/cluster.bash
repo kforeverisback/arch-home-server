@@ -28,6 +28,9 @@ sudo systemctl daemon-reload
 sudo systemctl restart systemd-resolved.service
 sudo systemctl restart docker
 
+export POD_DATA_PATH=/mnt/sdcard/k8s-data/pod-data
+export PROXY_REGISTRY_PATH=/mnt/sdcard/k8s-data/registry-data/docker-io-registry
+envsubst < k3d-template.yaml >| k3d.yaml
 # Create a cluster, with 2 agents, 1 node, using previously used k3d-registry, use a docker.io mirror, persistance pod data @/data
-k3d cluster create ivy-k3d-cluster --agents 2 --config k3d-new.yaml --registry-use k3d-registry.localhost:5000 --registry-config pull-through-registry.yaml --volume "/mnt/sdcard/k8s-data/pod-data:/data@server:0;agent:*"
+k3d cluster create ivy-k3d-cluster --config k3d.yaml
 
