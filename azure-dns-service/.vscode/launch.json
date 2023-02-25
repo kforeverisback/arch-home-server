@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "-z","km-neer.net",
+                "-g","common-infra",
+                "-r","something2"
+            ],
+            "env": {
+                "AZURE_CLIENT_ID": "51fffaf7-809e-4e1d-b128-7390c3e901a9",
+                "AZURE_CLIENT_SECRET": "sNR8Q~uCtMO5E4KT93ihmkcQYUgRFdwMrm1iZbhW",
+                "AZURE_SUBSCRIPTION_ID": "e66504de-2c48-4eba-9332-7ad6761dd6be",
+                "AZURE_TENANT_ID": "d4ba6e7b-14fe-4de0-a98c-04556f3a0e22"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
+ 

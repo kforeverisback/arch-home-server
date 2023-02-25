@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "azdns-update"
+version = "0.1.0"
+description = ""
+authors = ["Kushal Azim Ekram <kforeverisback@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.group.dev.dependencies]
+black = "^21.12b0"
+dustpan = "^0.3.2"
+flake8 = "^4.0.1"
+invoke = "^1.6.0"
+isort = "^5.10.1"
+mypy = "^0.930"
+pre-commit = "^3.0.4"
+
+[tool.black]
+line-length = 119
+
+[tool.dustpan]
+remove-empty-directories = true
+
+[tool.isort]
+line_length = 119
+profile = "black"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+azure-mgmt-dns = "^8.0.0"
+azure-identity = "^1.12.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
