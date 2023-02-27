@@ -1,0 +1,12 @@
+resources:
+- https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/library/general/containerrequests/template.yaml
+- https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/library/general/containerlimits/template.yaml
+- https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/library/general/containerresources/template.yaml
+- https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/library/pod-security-policy/allow-privilege-escalation/template.yaml
+- https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/library/pod-security-policy/privileged-containers/template.yaml
+# Now the constraints
+- ./containerrequests.yaml
+- ./containerlimits.yaml
+- ./containerresources.yaml
+- ./allow-privilege-escalation.yaml
+- ./privileged-containers.yaml
