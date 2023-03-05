@@ -20,9 +20,10 @@ k3d registry create registry.localhost --port 5000 --volume /mnt/sdcard/k8s-data
 docker_ip=$(ip addr show docker0 | grep -o -P '(?<=inet).*(?=brd)' | cut -d'/' -f 1 | xargs)
 cat /etc/systemd/resolved.conf | grep -oP "DNSStubListenerExtra.*=.*$docker_ip" > /dev/null || echo "DNSStubListenerExtra=$docker_ip" | sudo tee -a /etc/systemd/resolved.conf
 
-echo '{                                                                                    
-  "dns": ["'$docker_ip'"]
-}' | sudo tee -a /etc/docker/daemon.json
+# Adding the lines below messes us the UFW firewall and dns lookup
+#echo '{                                                                                    
+#  "dns": ["'$docker_ip'"]
+#}' | sudo tee -a /etc/docker/daemon.json
 
 sudo systemctl daemon-reload
 sudo systemctl restart systemd-resolved.service
