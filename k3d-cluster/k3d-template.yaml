@@ -1,7 +1,7 @@
 # Reference: https://k3d.io/v5.4.6/usage/configfile/#all-options-example
 apiVersion: k3d.io/v1alpha4
 kind: Simple
-servers: 1
+servers: 2
 agents: 2
 network: k3d-network
   #kubeAPI:
@@ -14,8 +14,9 @@ ports:
 volumes: # repeatable flags are represented as YAML lists
   - volume: $POD_DATA_PATH:/data #TODO arg  same as `--volume '/my/host/path:/path/in/node@server:0;agent:*'`
     nodeFilters:
-      - server:0
+      - server:*
       - agent:*
+  - volume: $PWD/auto-deploy-extras:/var/lib/rancher/k3s/server/manifests/auto-deploy-extras
 registries: # define how registries should be created or used
   create:
     name: docker-io # name of the registry container

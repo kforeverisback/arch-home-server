@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  docker.local.server: |
+    docker.local {
+      hosts /etc/coredns/custom/NodeHosts.docker.local {
+        ttl 60
+        reload 15s
+      }
+      log . {
+        class denial error
+      }
+      whoami
+      reload
+    }
+  NodeHosts.docker.local: |
+    127.0.0.1 fakeentry
+
