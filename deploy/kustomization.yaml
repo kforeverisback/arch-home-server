@@ -1,2 +1,6 @@
 resources:
   - all-namespaecs.yaml
+bases:
+  - ./apps/azure-dns-updater
+  - ./apps/docker-registry-ui
+  - ./apps/homebox

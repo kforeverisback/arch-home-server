@@ -24,5 +24,26 @@ The k3d cluster will create
 Notes:
 - Make sure the mount paths(k3s-data) is properly set and initialized
   - Currently its using a SDCard partioned as BTRFS volm
-- Modify k3d-resolv.conf accordingly, using which k3d will add DNS nameserver entries to the cluster
+<!-- - Modify k3d-resolv.conf accordingly, using which k3d will add DNS nameserver entries to the cluster -->
+- Make sure to add the k3d-network to ufw firewall
+```bash
+# first backup after.rules
+sudo cp -r /etc/ufw/after{,-b4-k3d-network}.rules
+k3d_subnet=$(docker network inspect k3d-network | jq '.[].IPAM.Config[].Subnet' -r)
+sed -i '/-A DOCKER-USER .* 172.16.*/p;s/172.16.*/'${k3d_subnet/\//\\\/}'/' /etc/ufw/after.rules
+sudo systemctl restart ufw
+```
 
+### Basic Structure of Homebox
+
+- Applications (e.g. Homebox) which doesn't require a HW, runs on Kubernetes
+- Appliatsions which rquires HW (usb) that runs on Docker Compose/Docker
+
+#### Kubernetes cluster brief
+
+- Uses k3d to create a single node cluster
+- Runs Traefik as Load Balancer
+- Each program will use its own hostname matching
+  - **Note**, hostname DNS is currently mananged by Home Gargoyle Router
+  -  The application specific DNSs are wildcard, e.g. homebox.chromebox.lan translates to *.chromebox.lan
+  - Added this line to `dnsmasq.conf`: `address=/chromebox.lan/10.110.210.248`

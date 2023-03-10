@@ -4,6 +4,12 @@
 RM=/bin/rm
 [[ -z $SSH_PORT ]] && SSH_PORT=420
 pause () { read -rsn1 > /dev/null; }
+
+echo "   Symlink resolvd to systemd-resovled stub   "
+echo "----------------------------------------------" 
+sudo rm /etc/resolv.conf
+sudo ln -s /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
 echo "____________________________________________"
 echo "           INSTALL YAY&tools                "
 echo "                                            "
@@ -18,12 +24,15 @@ $RM -r yay-bin
 
 # Now install some terminal tools
 mkdir -p ~/.local/bin/
-yay -S fd bat exa procs starship bottom ranger sd dust tokei tealdeer git-delta git-extras --noconfirm
+yay -S fd bat exa procs starship bottom ranger sd dust tokei tealdeer git-delta git-extras powertop tailscale --noconfirm
 cp zshrc-post ~/
 echo 'source ~/zshrc-post' >> ~/.zshrc
 # Install chtsh
 curl -s https://cht.sh/:cht.sh | sudo tee /usr/local/bin/cht.sh > /dev/null && sudo chmod +x /usr/local/bin/cht.sh
 ln -s /usr/local/bin/cht.sh ~/.local/bin
+
+#python3 -m pip install --user pipx
+# Install via pipx: yq, httpie, pyinfra
 
 echo "____________________________________________"
 echo "           INSTALL SERVER TOOLS             "
@@ -45,13 +54,35 @@ sudo systemctl enable containerd.service
 
 echo "           K3d kubernetes cluster           "
 echo "--------------------------------------------"
-yay -S rancher-k3d-bin --noconfirm
+yay -S rancher-k3d-bin kubectl --noconfirm
+# Install krew as well
+# Following https://krew.sigs.k8s.io/docs/user-guide/setup/install/
+(
+  set -x; cd "$(mktemp -d)" &&
+  OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+  ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+  KREW="krew-${OS}_${ARCH}" &&
+  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+  tar zxvf "${KREW}.tar.gz" &&
+  ./"${KREW}" install krew
+)
 
 
 echo "            Wireguard VPN Tools             "
 echo "--------------------------------------------"
 # If you used the post-install script, this should already be installed
 yay -S wireguard-tools --noconfirm
+
+echo "       Install UFW and ufe-docker           "
+echo "--------------------------------------------"
+yay -S ufw ufw-extras ufw-docker --noconfirm
+sudo systemctl enable ufw
+# Now enable certain ports in ufw
+sudo ufw allow 420
+# Allow container and the private bridge network can visit each other normally
+sudo ufw-docker install
+sudo systemctl restart ufw
+sudo ufw enable
 
 echo "                   BTRBK                    "
 echo "--------------------------------------------"
@@ -127,6 +158,7 @@ sudo systemctl enable powertop.service
 sudo powertop --auto-tune
 ## Start the service
 sudo systemctl start powertop.service
+
 
 echo "    Auto-restart VPN server   "
 echo "------------------------------" 

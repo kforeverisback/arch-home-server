@@ -113,9 +113,13 @@ mcd () { mkdir -p "$1" && cd "$1" || exit; }        # mcd:          Makes new Di
 
 ### Exports
 [[ "${PATH#*:$HOME/.local/bin}" == "$PATH" ]] && export PATH="$PATH:$HOME/.local/bin"
+[[ "${PATH#*:${KREW_ROOT:-$HOME/.krew}/bin}" == "$PATH" ]] && export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
+export EDITOR=nvim
+export VISUAL=nvim
 
 ## Source k3d completion
 # shellcheck disable=SC1090
 [[ $(command -v k3d) ]] && . <(k3d completion zsh)
 [[ $(command -v kubectl) ]] && . <(kubectl completion zsh)
+[[ $(command -v starship) ]] && eval "$(starship init zsh)"

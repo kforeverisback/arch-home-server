@@ -48,7 +48,7 @@ disabled = false
 only_with_files = true
 
 [kubernetes]
-format = 'on [Γ¢╡ $context](dimmed green) '
+format = 'on [⛵ $context](dimmed green) '
 #format = 'on [Γ¢╡ $context \($namespace\)](dimmed green) '
 disabled = false
 

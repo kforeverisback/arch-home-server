@@ -45,7 +45,7 @@ spec:
         - name: homebox-volume
           hostPath:
             # directory location on host
-            path: /data
+            path: /data/homebox
             # this field is optional
             type: Directory
 ---
@@ -63,3 +63,18 @@ spec:
     port: 7745
     targetPort: 7745
   type: ClusterIP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homebox-ingressroute
+  namespace: homebox
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`homebox.chromebox.lan`) || Host(`homebox.km-neer.net`)
+    kind: Rule
+    services:
+    - name: homebox
+      port: 7745
