@@ -11,6 +11,15 @@ The k3d cluster will create
 - A volume would be added to the single docker node
 - 20 ports will be forwarded (31100-31120)
 
+Create cluster deploy file and deploy:
+```bash
+export PROXY_REGISTRY_PATH=/mnt/sdcard/k8s-data/registry-data/docker-io-registry/
+export POD_DATA_PATH=/mnt/sdcard/k8s-data/pod-data/
+envsubst < k3d-template.yaml > k3d-deploy.yaml
+k3d cluster create ivy-k3d-cluster --config k3d-deploy.yaml
+
+```
+
 Notes:
 - Make sure the mount paths(k3s-data) is properly set and initialized
   - Currently its using a SDCard partioned as BTRFS volm

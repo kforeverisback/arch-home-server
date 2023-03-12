@@ -13,26 +13,7 @@
 
 ## Deploying k3d cluster
 
-Use make create to deploy the k3d cluster
-
-The k3d cluster will create
-- A docker network
-- A registry at port localhost:5000
-- A volume would be added to the single docker node
-- 20 ports will be forwarded (31100-31120)
-
-Notes:
-- Make sure the mount paths(k3s-data) is properly set and initialized
-  - Currently its using a SDCard partioned as BTRFS volm
-<!-- - Modify k3d-resolv.conf accordingly, using which k3d will add DNS nameserver entries to the cluster -->
-- Make sure to add the k3d-network to ufw firewall
-```bash
-# first backup after.rules
-sudo cp -r /etc/ufw/after{,-b4-k3d-network}.rules
-k3d_subnet=$(docker network inspect k3d-network | jq '.[].IPAM.Config[].Subnet' -r)
-sed -i '/-A DOCKER-USER .* 172.16.*/p;s/172.16.*/'${k3d_subnet/\//\\\/}'/' /etc/ufw/after.rules
-sudo systemctl restart ufw
-```
+Follow [this doc](./k8s-deploy/k3d-cluster/README.md).
 
 ### Basic Structure of Homebox
 
