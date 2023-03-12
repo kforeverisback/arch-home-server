@@ -1,0 +1,74 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+  labels:
+    app: filebrowser
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: filebrowser
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+    spec:
+      containers:
+        - name: filebrowser
+          image: filebrowser/filebrowser:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "512m"
+            requests:
+              memory: "128Mi"
+              cpu: "128m"
+          env:
+          - name: FB_NOAUTH 
+            value: noauth
+          volumeMounts:
+            - name: filebrowser-volume
+              mountPath: /srv
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: filebrowser-volume
+          hostPath:
+            # directory location on host
+            path: /data/filebrowser
+            # this field is optional
+            type: Directory
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: filebrowser
+spec:
+  selector:
+    app: filebrowser
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+  type: ClusterIP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: filebrowser-ingressroute
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`fb.chromebox.lan`) | || Host(`filebrowser.chromebox.lan`) || Host(`filebrowser.km-neer.net`)
+    kind: Rule
+    services:
+    - name: filebrowser
+      port: 80
