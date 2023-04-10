@@ -4,7 +4,9 @@
 ### .docker.local will be added to the container name as FQDN to hosts file
 
 usage () { echo -e "Container name is empty.\nUsage: ./$0 DKR-CONTAINER-ID-or-NAME" >&2; }
-CLUSTER_NETWORK=k3d-network
+
+# Cluster Network
+[[ -z "$CLUSTER_NETWORK" ]] && CLUSTER_NETWORK=k3d-network
 
 container_name_or_id=$1
 echo "Container Name/ID: $container_name_or_id"

@@ -11,9 +11,21 @@
 
 - Create Parition for k3d-data and docker-data
 
+## Setting up router
+
+- Each program will use its own hostname matching
+  - **Note**, hostname DNS is currently mananged by Gargoyle Router and a raspberry pi 1 running Adguard
+  -  The application specific DNSs are wildcard, e.g. `homebox.chromebox.lan` translates to `*.chromebox.lan`
+  - Added this line to `/etc/dnsmasq.conf`: `address=/chromebox.lan/10.110.210.248`
+
 ## Deploying k3d cluster
 
 Follow [this doc](./k8s-deploy/k3d-cluster/README.md).
+
+A good source of k8s home server motivations:
+- https://github.com/bjw-s/home-ops
+- https://github.com/budimanjojo/home-cluster
+- https://github.com/0dragosh/homelab
 
 ### Basic Structure of Homebox
 
@@ -24,7 +36,3 @@ Follow [this doc](./k8s-deploy/k3d-cluster/README.md).
 
 - Uses k3d to create a single node cluster
 - Runs Traefik as Load Balancer
-- Each program will use its own hostname matching
-  - **Note**, hostname DNS is currently mananged by Home Gargoyle Router
-  -  The application specific DNSs are wildcard, e.g. homebox.chromebox.lan translates to *.chromebox.lan
-  - Added this line to `dnsmasq.conf`: `address=/chromebox.lan/10.110.210.248`
