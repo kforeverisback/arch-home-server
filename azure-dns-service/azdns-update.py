@@ -8,7 +8,7 @@ from itertools import cycle
 from os import getenv
 from random import shuffle
 from time import sleep
-from typing import Union
+from typing import Union, Generator
 from urllib.request import urlopen
 
 from azure.identity import DefaultAzureCredential
@@ -38,7 +38,7 @@ p.add_argument(
     default=getenv("AZURE_SUBSCRIPTION_ID"),
     help="Azure Subscription ID (env: AZURE_SUBSCRIPTION_ID)",
 )
-p.add_argument("-r", "--record-name", required=True, help="Record set to update/create")
+p.add_argument("--record-names", required=True, nargs='+', default=[], help="One or more space-separated DNS record set to update/create")
 # Optional Args
 p.add_argument(
     "-i",
@@ -57,7 +57,7 @@ p.add_argument(
 args = p.parse_args()
 
 
-def get_next_public_ip(static_ip: str = "") -> str:
+def get_next_public_ip(static_ip: str = "") -> Generator:
     str_not_blank = lambda s: bool(s and not s.isspace())
     # If a static ip is provided then use that always
     if str_not_blank(static_ip):
@@ -97,7 +97,7 @@ ip_provider_index = 0
 # # First get record-set
 # record_set:Union[object, RecordSet]  = None
 # try:
-# 	record_set = dns_client.record_sets.get(args.resource_group, args.dns_zone, args.record_name, 'A')
+# 	record_set = dns_client.record_sets.get(args.resource_group, args.dns_zone, args.record_names, 'A')
 # except HttpResponseError as e:
 # 	# Record not found or some problem?!
 # 	pass
@@ -108,7 +108,7 @@ print(
   Run once     : {args.run_once}
   Rsc Group    : {args.resource_group}
   DNS Zone     : {args.dns_zone}
-  Record Name  : {args.record_name}
+  Record Name  : {args.record_names}
   IP Address   : {'Public' if args.static_ip == '' else args.static_ip}
   Internal     : {args.interval}
 """
@@ -121,8 +121,9 @@ while True:  # Infinite loop
     if old_ip_addr != new_ip_addr:
         parameter_record = {"ttl": 300, "a_records": [{"ipv4_address": f"{new_ip_addr}"}]}
         old_ip_addr = new_ip_addr
-        dns_client.record_sets.create_or_update(args.resource_group, args.dns_zone, args.record_name, "A", parameter_record)  # type: ignore
-        print(f"Updating DNS record {args.record_name}.{args.dns_zone} with IP ({new_ip_addr})")
+        for record in args.record_names:
+            dns_client.record_sets.create_or_update(args.resource_group, args.dns_zone, record, "A", parameter_record)  # type: ignore
+        print(f"Updating DNS record {args.record_names}.{args.dns_zone} with IP ({new_ip_addr})")
     else:
         print("Skipping: new IP is same as old IP")
     if args.run_once:
