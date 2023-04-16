@@ -1,9 +1,3 @@
-resources:
-  # - ./all-namespaces.yaml
-  - ./apps/filebrowser/filebrowser-deploy.yaml
-  - ./apps/homebox/homebox-deploy.yaml
-# bases:
-  # - ./apps/azure-dns-updater
-  # - ./apps/docker-registry-ui
-  # - ./apps/filebrowser
-  # - ./apps/homebox
+bases:
+  - ./apps/filebrowser
+  - ./apps/homebox
