@@ -73,20 +73,40 @@ echo "--------------------------------------------"
 # If you used the post-install script, this should already be installed
 yay -S wireguard-tools --noconfirm
 
-echo "       Install UFW and ufe-docker           "
+echo "       Install UFW, iptables-nft and ufw-docker           "
 echo "--------------------------------------------"
+yay -S iptables-nft --noconfirm
 yay -S ufw ufw-extras ufw-docker --noconfirm
-sudo systemctl enable ufw
-# Now enable certain ports in ufw
-sudo ufw allow 420
+wget -qO- https://github.com/shinebayar-g/ufw-docker-automated/releases/download/v0.11.0/ufw-docker-automated_0.11.0_linux_amd64.tar.gz | tar xz -C /tmp
+sudo mv /tmp/ufw-docker-automated /usr/local/bin/
+# Install systemd service
+echo "[Unit]
+Description=Ufw docker automated
+Documentation=https://github.com/shinebayar-g/ufw-docker-automated
+After=network-online.target ufw.service containerd.service
+Wants=network-online.target
+Requires=ufw.service
+
+[Service]
+# To manage ufw rules, binary has to run as a root or sudo privileged user.
+# User=ubuntu
+# Provide /path/to/ufw-docker-automated
+ExecStart=/usr/local/bin/ufw-docker-automated
+Restart=always
+
+[Install]
+WantedBy=multi-user.target" | sudo tee -a /lib/systemd/system/ufw-docker-automated.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable ufw-docker-automated --now
 # Allow container and the private bridge network can visit each other normally
 sudo ufw-docker install
-sudo systemctl restart ufw
-sudo ufw enable
+sudo systemctl enable ufw --now
+# Now enable certain ports in ufw
+sudo ufw allow to any port $SSH_PORT
 
 echo "                   BTRBK                    "
 echo "--------------------------------------------"
-echo "Swiss handknife-like tool to automate snapshots & backups of personal data" 
+echo "Swiss handknife-like tool to automate snapshots & backups of personal data"
 # available in the Arch User Repository (AUR) thus installed via Pamac. Will be automatically updated just like official repository packages. 
 yay -S btrbk --noconfirm
 

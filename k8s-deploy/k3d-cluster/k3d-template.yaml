@@ -1,8 +1,8 @@
 # Reference: https://k3d.io/v5.4.6/usage/configfile/#all-options-example
 apiVersion: k3d.io/v1alpha4
 kind: Simple
-servers: 2
-agents: 2
+# servers: 2
+# agents: 2
 network: k3d-network
   #kubeAPI:
   #hostIP: 0.0.0.0
@@ -11,8 +11,18 @@ ports:
 - port: 30000:80 # Istio/traefik IngressGateway LoadBalancer NodePort
   nodeFilters:
   - loadbalancer
+- port: 38000:8000 # Istio/traefik IngressGateway LoadBalancer NodePort
+  nodeFilters:
+  - loadbalancer
+- port: 38080:8080 # Istio/traefik IngressGateway LoadBalancer NodePort
+  nodeFilters:
+  - loadbalancer
 volumes: # repeatable flags are represented as YAML lists
   - volume: $POD_DATA_PATH:/data #TODO arg  same as `--volume '/my/host/path:/path/in/node@server:0;agent:*'`
+    nodeFilters:
+      - server:*
+      - agent:*
+  - volume: /var/run/docker.sock:/var/run/docker.sock #For traefik access
     nodeFilters:
       - server:*
       - agent:*

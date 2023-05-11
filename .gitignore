@@ -1,1 +1,2 @@
 azure-dns-service/dns.dev.env
+docker-deploy/appdata/*
