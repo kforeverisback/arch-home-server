@@ -1,0 +1,266 @@
+# Following: https://github.com/htpcBeginner/docker-traefik/blob/master/docker-compose-t2.yml
+version: "3.9"
+name: baseline-deployment
+networks:
+  t2_proxy:
+    name: t2_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.150.0/24
+  default:
+    driver: bridge
+  socket_proxy:
+    name: socket_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.151.0/24
+
+secrets:
+  traefik_htpasswd:
+    file: $SECRETS_DIR/traefik_htpasswd
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Common environment values
+x-environment: &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-baseline: &common-keys-baseline
+  networks:
+    - t2_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+  # profiles:
+  # - core
+
+
+########################### SERVICES
+services:
+  # This is the image proxy image, where it will cache the images locally
+  # image-proxy: 
+  #   container_name: docker-registry-cache
+  #   image: ghcr.io/lhns/docker-registry-cache:0.3.0
+  #   environment:
+  #     CONFIG: |
+  #       [
+  #         "registry-1.docker.io",
+  #         "ghcr.io",
+  #         "gcr.io"
+  #       ]
+  #     REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+  #   volumes:
+  #     - $APPDATA_DIR/docker-registry-cache:/var/lib/registry
+  #   ports:
+  #     - "5500:5500"
+  # zzz_proxy:
+  #   # This dummy service prevents the image from getting pruned
+  #   image: ghcr.io/lhns/docker-registry-cache:0.3.0
+  #   entrypoint: tail -f /dev/null
+  #   deploy:
+  #     mode: global
+
+  # Traefik 2 - Reverse Proxy
+  # Touch (create empty files) traefik.log and acme/acme.json. Set acme.json permissions to 600.
+  # touch $DOCKERDIR/appdata/traefik2/acme/acme.json
+  # chmod 600 $DOCKERDIR/appdata/traefik2/acme/acme.json
+  # touch $DOCKERDIR/logs/cloudserver/traefik.log
+  # touch $DOCKERDIR/logs/cloudserver/access.log
+  traefik:
+    <<: *common-keys-baseline # See EXTENSION FIELDS at the top
+    container_name: traefik
+    image: traefik:v2.10
+    command: # CLI arguments
+      - --global.checkNewVersion=true
+      - --global.sendAnonymousUsage=true
+      - --entryPoints.${TRAEFIK_HTTP_ENTRYPOINT_NAME}.address=:${TRAEFIK_HTTP_PORT}
+      - --entryPoints.https.address=:${TRAEFIK_HTTPS_PORT}
+      # Allow these IPs to set the X-Forwarded-* headers - Cloudflare IPs: https://www.cloudflare.com/ips/
+      - --entrypoints.https.forwardedHeaders.trustedIPs=$TAILSCALE_IPS,$LOCAL_IPS
+      - --entryPoints.traefik.address=:8080
+      # - --entryPoints.ping.address=:8081
+      - --api=true
+      - --api.insecure=true
+      - --api.dashboard=true
+      #- --ping=true
+      # - --serversTransport.insecureSkipVerify=true
+      - --log=true
+      - --log.level=INFO # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --log.filePath=/logs/traefik.log
+      - --accessLog=true
+      - --accessLog.filePath=/logs/access.log
+      - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
+      - --accessLog.filters.statusCodes=204-299,400-499,500-599
+      - --providers.docker=true
+      # - --providers.docker.endpoint=unix:///var/run/docker.sock # Use Docker Socket Proxy instead for improved security
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
+      # Automatically set Host rule for services
+      # - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME_CLOUD_SERVER`)
+      - --providers.docker.exposedByDefault=false
+      # - --providers.docker.network=t2_proxy
+      - --providers.docker.swarmMode=false
+      - --providers.file.directory=/config # Load dynamic configuration from one or more .toml or .yml files in a directory
+      # - --providers.file.filename=/path/to/file # Load dynamic configuration from a file
+      - --providers.file.watch=true # Only works on top level files in the rules folder
+      # - --metrics.prometheus=true
+      # - --metrics.prometheus.buckets=0.1,0.3,1.2,5.0
+    networks:
+      - t2_proxy
+        # ipv4_address: 192.168.150.254 # You can specify a static IP
+      - socket_proxy
+    #healthcheck:
+    #  test: ["CMD", "traefik", "healthcheck", "--ping"]
+    #  interval: 5s
+    #  retries: 3
+    ports:
+      - target: 80
+        published: ${TRAEFIK_HTTP_PORT}
+        protocol: tcp
+        mode: host
+      # - target: 443
+      #   published: ${TRAEFIK_HTTPS_PORT}
+      #   protocol: tcp
+      #   mode: host
+      # - target: 8080 # insecure api wont work
+      #   published: 8080
+      #   protocol: tcp
+      #   mode: host
+    volumes:
+      - $DOCKER_COMPOSE_DIR/traefik2:/config # file provider directory for rules
+      # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
+      # - $DOCKERDIR/appdata/traefik2/acme/acme.json:/acme.json # cert location - you must create this emtpy file and change permissions to 600
+      - $APPDATA_DIR/traefik2/logs/:/logs # for fail2ban or crowdsec
+    environment:
+      - TZ=$TZ
+      - HTPASSWD_FILE=/run/secrets/traefik_htpasswd # HTPASSWD_FILE can be whatever as it is not used/called anywhere.
+      - DOMAINNAME_CLOUD_SERVER # Passing the domain name to traefik container to be able to use the variable in rules. 
+    secrets:
+      - traefik_htpasswd
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      #- "autoheal=true"
+      - "traefik.enable=true"
+      # HTTP-to-HTTPS Redirect
+      # - "traefik.http.routers.http-catchall.entrypoints=http"
+      # - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      # - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # HTTP Routers
+      - "traefik.http.routers.traefik-rtr.entrypoints=$TRAEFIK_HTTP_ENTRYPOINT_NAME"
+      - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME_CLOUD_SERVER`)"
+      # - "traefik.http.routers.traefik-rtr.tls=false" # Some people had 404s without this
+      # - "traefik.http.routers.traefik-rtr.tls.certresolver=dns-cloudflare" # Comment out this line after first run of traefik to force the use of wildcard certs
+      # - "traefik.http.routers.traefik-rtr.tls.domains[0].main=$DOMAINNAME_CLOUD_SERVER"
+      # - "traefik.http.routers.traefik-rtr.tls.domains[0].sans=*.$DOMAINNAME_CLOUD_SERVER"
+      # - "traefik.http.routers.traefik-rtr.tls.domains[1].main=$DOMAINNAME2" # Pulls main cert for second domain
+      # - "traefik.http.routers.traefik-rtr.tls.domains[1].sans=*.$DOMAINNAME2" # Pulls wildcard cert for second domain
+      ## Services - API
+      - "traefik.http.routers.traefik-rtr.service=api@internal"
+      ## Healthcheck/ping
+      #- "traefik.http.routers.ping.rule=Host(`traefik.$DOMAINNAME_CLOUD_SERVER`) && Path(`/ping`)"
+      #- "traefik.http.routers.ping.tls=true"
+      #- "traefik.http.routers.ping.service=ping@internal"
+      ## Middlewares
+      #- "traefik.http.routers.traefik-rtr.middlewares=chain-no-auth@file" # For No Authentication
+      - "traefik.http.routers.traefik-rtr.middlewares=middlewares-basic-auth@file" # For Basic HTTP Authentication
+      # - "traefik.http.routers.traefik-rtr.middlewares=chain-oauth@file" # For Google OAuth
+      #- "traefik.http.routers.traefik-rtr.middlewares=chain-authelia@file" # For Authelia Authentication
+      - "UFW_MANAGED=TRUE"
+      - "UFW_ALLOW_FROM=10.110.210.179-karch;100.64.0.0/10-tailscale"
+      - "UFW_HOST_ALLOW=TRUE"
+      - "UFW_HOST_ALLOW_TO=172.17.0.1-8123-homeassistant" # Home assistant proxy
+      # - "UFW_DENY_OUT=FALSE"
+  # Docker Socket Proxy - Security Enchanced Proxy for Docker Socket
+  socket-proxy:
+    <<: *common-keys-baseline # See EXTENSION FIELDS at the top
+    container_name: socket-proxy
+    image: tecnativa/docker-socket-proxy
+    networks:
+      socket_proxy:
+    privileged: true # true for VM. False for unprivileged LXC container.
+    #ports:
+    # - "127.0.0.1:2375:2375" # Port 2375 should only ever get exposed to the internal network. When possible use this line.
+    # I use the next line instead, as I want portainer to manage multiple docker endpoints within my home network.
+    # - "2375:2375"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      - LOG_LEVEL=info # debug,info,notice,warning,err,crit,alert,emerg
+      ## Variables match the URL prefix (i.e. AUTH blocks access to /auth/* parts of the API, etc.).
+      # 0 to revoke access.
+      # 1 to grant access.
+      ## Granted by Default
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      ## Revoked by Default
+      # Security critical
+      - AUTH=0
+      - SECRETS=0
+      - POST=1 # Watchtower
+      # Not always needed
+      - BUILD=0
+      - COMMIT=0
+      - CONFIGS=0
+      - CONTAINERS=1 # Traefik, portainer, etc.
+      - DISTRIBUTION=0
+      - EXEC=0
+      - IMAGES=1 # Portainer
+      - INFO=1 # Portainer
+      - NETWORKS=1 # Portainer
+      - NODES=0
+      - PLUGINS=0
+      - SERVICES=1 # Portainer
+      - SESSION=0
+      - SWARM=0
+      - SYSTEM=0
+      - TASKS=1 # Portainer
+      - VOLUMES=1 # Portainer
+  # SSH port 22 F* around
+  endlessh:
+    <<: *common-keys-baseline # See EXTENSION FIELDS at the top
+    image: lscr.io/linuxserver/endlessh:latest
+    container_name: endlessh
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      MSDELAY: 10000 #optional
+      MAXLINES: 32 #optional
+      MAXCLIENTS: 4096 #optional
+      LOGFILE: false #optional
+      BINDFAMILY: #optional
+    volumes:
+      - $APPDATA_DIR/endless-ssh/config:/config #optional
+    ports:
+      - 22:2222
+
+  yacht:
+    <<: *common-keys-baseline
+    image: selfhostedpro/yacht
+    container_name: yacht
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      # SECRET_KEY: insanesecret
+      DISABLE_AUTH: "True"
+      DOCKER_HOST: tcp://socket-proxy:2375
+    networks:
+      - t2_proxy
+      - socket_proxy    
+    volumes:
+      - $APPDATA_DIR/yacht/:/config
+      # - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.yacht-http.rule=Host(`yacht.${DOMAINNAME_CLOUD_SERVER}`)"
+      - "traefik.http.routers.yacht-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT_NAME}"
+      - "traefik.http.routers.yacht-http.service=yacht-http-svc"
+      - "traefik.http.services.yacht-http-svc.loadbalancer.server.port=8000"
+      - "traefik.docker.network=t2_proxy"
+      # - "traefik.http.routers.yacht-http.middlewares=middlewares-basic-auth@file" # For Basic HTTP Authentication

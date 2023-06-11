@@ -1,0 +1,22 @@
+# ---
+# http:
+#   routers:
+#     home-assistant:
+#       service: home-assistant
+#       rule: "Host(`hass.chromebox.lan`)"
+#       entryPoints:
+#         - http
+#     # homebox2:
+#     #   service: homebox2
+#     #   rule: "Host(`homebox2.chromebox.lan`)"
+#     #   entryPoints:
+#     #     - http
+#   services:
+#     home-assistant:
+#       loadBalancer:
+#         servers:
+#           - url: http://host.docker.internal:8123
+#     # homebox2:
+#     #   loadBalancer:
+#     #     servers:
+#     #       - url: http://host.docker.internal:7745
