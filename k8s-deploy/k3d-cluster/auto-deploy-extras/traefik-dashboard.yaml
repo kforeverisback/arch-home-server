@@ -1,0 +1,15 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard-k3d
+  namespace: kube-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`traefik.chromebox.lan`)
+    kind: Rule
+    services:
+    - name: traefik
+      port: 9000

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+      - args:
+        - --global.checknewversion
+        - --global.sendanonymoususage
+        - --entrypoints.metrics.address=:9100/tcp
+        - --entrypoints.traefik.address=:9000/tcp
+        - --entrypoints.web.address=:8000/tcp
+        - --entrypoints.websecure.address=:8443/tcp
+        - --api.dashboard=true
+        - --accesslog=true
+        - --ping=true
+        - --metrics.prometheus=true
+        - --metrics.prometheus.entrypoint=metrics
+        - --providers.docker
+        - --providers.kubernetescrd
+        - --providers.kubernetesingress
+        - --providers.kubernetesingress.ingressendpoint.publishedservice=kube-system/traefik
+        - --entrypoints.websecure.http.tls=true
+        image: rancher/mirrored-library-traefik:2.6.2
+        name: traefik
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /var/run/docker.sock
+          name: docker-sock
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      volumes:
+      - name: data
+      - name: tmp
+      - name: docker-sock
+        hostPath:
+          # directory location on host
+          path: /var/run/docker.sock
+          # this field is optional
+

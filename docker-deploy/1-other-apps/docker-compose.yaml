@@ -1,0 +1,56 @@
+# Following: https://github.com/htpcBeginner/docker-traefik/blob/master/docker-compose-t2.yml
+version: "3.9"
+name: app-deployment
+networks:
+  t2_proxy:
+    name: t2_proxy # --> External network name from baseline
+    external: true
+  socket_proxy:
+    name: socket_proxy # --> External network name from baseline
+    external: true
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Common environment values
+# Env variables are set from .env file, which is a symlink to ../.env file
+x-environment: &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-baseline: &common-network-restart-security
+  networks:
+    - t2_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+  # profiles:
+  # - core
+services:
+  homebox:
+    <<: *common-network-restart-security # See EXTENSION FIELDS at the top
+    # network_mode: host
+    image: ghcr.io/hay-kot/homebox:latest
+    container_name: homebox
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      HBOX_LOG_LEVEL: info
+      HBOX_WEB_MAX_UPLOAD_SIZE: "10"
+      HBOX_OPTIONS_ALLOW_REGISTRATION: "false"
+    volumes:
+      - $APPDATA_DIR/homebox/:/data:rw
+    ports:
+      - target: 7745
+        published: 7745
+        protocol: tcp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homebox-http.rule=Host(`homebox.$DOMAINNAME_CLOUD_SERVER`)"
+      - "traefik.http.routers.homebox-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT_NAME}"
+      - "traefik.http.routers.homebox-http.service=homebox-http-svc"
+      - "traefik.http.services.homebox-http-svc.loadbalancer.server.port=7745"
+      # - "traefik.http.services.homebox-http-svc.loadbalancer.server.url=http://host.docker.internal:7745"
+      - "traefik.docker.network=t2_proxy"
