@@ -123,3 +123,7 @@ export VISUAL=nvim
 [[ $(command -v k3d) ]] && . <(k3d completion zsh)
 [[ $(command -v kubectl) ]] && . <(kubectl completion zsh)
 [[ $(command -v starship) ]] && eval "$(starship init zsh)"
+
+## Source Git Extras
+
+[[ -f /usr/share/doc/git-extras/git-extras-completion.zsh ]] && source /usr/share/doc/git-extras/git-extras-completion.zsh

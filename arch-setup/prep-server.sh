@@ -14,6 +14,8 @@ echo "____________________________________________"
 echo "           INSTALL YAY&tools                "
 echo "                                            "
 echo "____________________________________________"
+sed -i '/\[options\]/a Color\
+ILoveCandy' /etc/pacman.conf
 echo y | sudo pacman -S --needed git base-devel
 cd /tmp || exit
 git clone https://aur.archlinux.org/yay-bin.git
