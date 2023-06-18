@@ -1,0 +1,354 @@
+# Concat 'homeassistant' and 'other' docker-compose files
+# Following: https://github.com/htpcBeginner/docker-traefik/blob/master/docker-compose-t2.yml
+version: "3.9"
+name: homeassistant-deployment
+networks:
+  t2_proxy:
+    name: t2_proxy # --> External network name from baseline
+    external: true
+  socket_proxy:
+    name: socket_proxy # --> External network name from baseline
+    external: true
+
+secrets:
+  vscode_passwd:
+    file: $SECRETS_DIR/vscode_passwd
+  mosquitto_passwd:
+    file: $SECRETS_DIR/mosquitto_passwd
+
+########################### EXTENSION FIELDS
+# Helps eliminate repetition of sections
+# More Info on how to use this: https://github.com/htpcBeginner/docker-traefik/pull/228
+
+# Common environment values
+# Env variables are set from .env file, which is a symlink to ../.env file
+x-environment: &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+# Keys common to some of the services in basic-services.txt
+x-common-keys-baseline: &common-network-restart-security
+  networks:
+    - t2_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+  # profiles:
+  # - core
+
+services:
+# Based on: https://github.com/aneisch/home-assistant-config/blob/master/extras/docker-compose/unified/docker-compose.yml
+  homeassistant:
+    container_name: hass
+    image: lscr.io/linuxserver/homeassistant:latest
+    volumes:
+      - $APPDATA_DIR/homeassistant:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /sys/class/hwmon/hwmon1/temp1_input:/sys/class/thermal/thermal_zone0/temp:ro
+      - /dev/serial/by-id/usb-ITEAD_SONOFF_Zigbee_3.0_USB_Dongle_Plus_V2_20220707170623-if00:/dev/serial/by-id/usb-ITEAD_SONOFF_Zigbee_3.0_USB_Dongle_Plus_V2_20220707170623-if00
+    devices:
+      - /dev/serial/by-id/usb-ITEAD_SONOFF_Zigbee_3.0_USB_Dongle_Plus_V2_20220707170623-if00:/dev/zigbee
+    healthcheck:
+      test: 'curl -m 90 -sLf http://localhost:8123 || date >> /config/healthcheck' #| pkill -9 python3'
+      interval: 90s
+      timeout: 60s
+      retries: 2
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      WATCHTOWER_MONITOR_ONLY: true
+    # ports:
+    #   - 8123:8123
+    network_mode: host
+    restart: unless-stopped
+    logging:
+      driver: none
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hass-http.rule=Host(`hass.$DOMAINNAME_CLOUD_SERVER`)"
+      - "traefik.http.routers.hass-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT_NAME}"
+      - "traefik.http.routers.hass-http.service=hass-http-svc"
+      # - "traefik.http.services.hass-http-svc.loadbalancer.servers.url=http://host.docker.internal:8123"
+      # - "traefik.http.services.homebox-http-svc.loadbalancer.server.url=http://host.docker.internal:7745"
+      # - "traefik.docker.network=t2_proxy"
+      - "traefik.http.services.hass-http-svc.loadbalancer.server.port=8123"
+      - "com.centurylinklabs.watchtower.monitor-only=true"
+      # - "traefik.docker.network=t2_proxy"
+  mosquitto:
+    <<: *common-network-restart-security
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    # user: '99'
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+    healthcheck:
+      test: "mosquitto_sub -E -t '#'"
+      interval: 60s
+      timeout: 10s
+      retries: 5
+    secrets:
+      - mosquitto_passwd
+    volumes:
+      - $DOCKER_COMPOSE_DIR/mosquitto/config:/mosquitto/config:ro
+      - $APPDATA_DIR/mosquitto/log:/mosquitto/log
+      - $APPDATA_DIR/mosquitto/data:/mosquitto/data
+    ports:
+      - '1883:1883'
+      - '8883:8883'
+  nodered:
+    <<: *common-network-restart-security
+    container_name: nodered
+    image: nodered/node-red:latest
+    # user: '99'
+    volumes:
+      - $APPDATA_DIR/nodered:/data
+    ports:
+      - 1880:1880
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+  appdaemon:
+    # https://appdaemon.readthedocs.io/
+    <<: *common-network-restart-security
+    container_name: appdaemon
+    #image: acockburn/appdaemon:4.0.5
+    image: acockburn/appdaemon:dev
+    #user: '99'
+    healthcheck:
+      test: "curl -sf http://localhost:8888"
+      interval: 60s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - $APPDATA_DIR/appdaemon:/conf
+      # Mount directory of appdaemon apps installed by HACS
+      - $APPDATA_DIR/homeassistant/appdaemon/apps:/conf/apps/hacs
+      #- /home/aneisch/dockerStart.sh:/usr/src/app/dockerStart.sh:ro
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+    ports:
+      - 8888:8888
+  zwave-js-ui:
+    <<: *common-network-restart-security
+    container_name: zwave-js-ui
+    image: zwavejs/zwave-js-ui:latest
+    tty: true
+    stop_signal: SIGINT
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      SESSION_SECRET: insanesecret
+      ZWAVEJS_EXTERNAL_CONFIG: /usr/src/app/store/.config-db
+    devices:
+      # Do not use /dev/ttyUSBX serial devices, as those mappings can change over time.
+      # Instead, use the /dev/serial/by-id/X serial device for your Z-Wave stick.
+      - /dev/serial/by-id/usb-Silicon_Labs_Zooz_ZST10_700_Z-Wave_Stick_7cffddb729ccec1187e23fb77b8007ef-if00-port0:/dev/zwave
+    volumes:
+      - $APPDATA_DIR/zwave-js-ui:/usr/src/app/store
+    # Or by using local folder
+    # - ./store:/usr/src/app/store
+    ports:
+      - "8091:8091" # port for web interface
+      - "3000:3000" # port for Z-Wave JS websocket server
+  # portainer:
+  #   container_name: portainer
+  #   #image: portainer/portainer
+  #   image: portainer/portainer-ce
+  #   volumes:
+  #     - '/var/run/docker.sock:/var/run/docker.sock'
+  #     - '/opt/portainer:/data'
+  #   ports:
+  #     - '9000:9000'
+  #   environment:
+  #     - TZ=America/Chicago
+  #     - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  #   restart: "no"
+  # grafana:
+  #   container_name: grafana
+  #   #image: grafana/grafana:6.4.5
+  #   image: grafana/grafana
+  #   #user: '99'
+  #   volumes:
+  #     - /opt/grafana:/var/lib/grafana
+  #   #ports:
+  #   #    - '3000:3000'
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - GF_SECURITY_ALLOW_EMBEDDING=true
+  #     #- GF_SECURITY_COOKIE_SAMESITE=none
+  #     - GF_INSTALL_PLUGINS=neocat-cal-heatmap-panel
+  #   restart: "no"
+  esphome:
+    container_name: esphome
+    restart: always
+    security_opt:
+    - no-new-privileges:true
+    # This is a custom build for now. Based on https://github.com/esphome/esphome/pull/671
+    #image: esphome-dev
+    #image: esphome/esphome:2021.10.3
+    image: esphome/esphome
+    volumes:
+      - $APPDATA_DIR/esphome/:/config:rw
+      # Use local time for logging timestamps
+      #- /etc/localtime:/etc/localtime:ro
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+    network_mode: host
+  # vscode:
+  #   <<: *common-network-restart-security
+  #   container_name: vscode
+  #   image: ghcr.io/hassio-addons/vscode/amd64:stable
+  #   volumes:
+  #     - $APPDATA_DIR/vscode/data:/data/vscode
+  #     - $APPDATA_DIR/homeassistant/:/config/homeassistant
+  #     - $APPDATA_DIR/appdaemon/:/config/appdaemon
+  #     - $APPDATA_DIR/vscode-codes:/config/vscode-codes
+  #   environment:
+  #     <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+  vscode:
+    <<: *common-network-restart-security
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: vscode
+    environment:
+      <<: *default-tz-puid-pgid # See EXTENSION FIELDS at the top
+      # HASHED_PASSWORD: "$$argon2i$$v=19$$m=4096,t=3,p=1$$Szlpdk1Tams3STQyVDNkeQ$$5OwznUvur8JS0JkzHK8mrrq4NBbGTUrbHTjpinGZbuM"
+      FILE__HASHED_PASSWORD: /run/secrets/vscode_passwd #optional
+      PROXY_DOMAIN: vscode.$DOMAINNAME_CLOUD_SERVER #optional
+      DEFAULT_WORKSPACE: /config/workspace #optional
+    volumes:
+      - $APPDATA_DIR/vscode/data:/config
+      - $APPDATA_DIR/homeassistant/:/config/homeassistant
+      - $APPDATA_DIR/appdaemon/:/config/appdaemon
+      - $APPDATA_DIR/vscode-codes:/config/vscode-codes
+    # ports:
+    #   - 8443:8443
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vscode-http.rule=Host(`vscode.$DOMAINNAME_CLOUD_SERVER`)"
+      - "traefik.http.routers.vscode-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT_NAME}"
+      - "traefik.http.routers.vscode-http.service=vscode-http-svc"
+      # - "traefik.http.services.hass-http-svc.loadbalancer.servers.url=http://host.docker.internal:8123"
+      # - "traefik.http.services.homebox-http-svc.loadbalancer.server.url=http://host.docker.internal:7745"
+      # - "traefik.docker.network=t2_proxy"
+      - "traefik.http.services.vscode-http-svc.loadbalancer.server.port=8443"
+    secrets:
+      - vscode_passwd
+# watchtower:
+#     container_name: watchtower
+#     image: containrrr/watchtower:latest
+#     volumes:
+#         - /var/run/docker.sock:/var/run/docker.sock
+#         - /etc/localtime:/etc/localtime:ro
+#     #restart: always
+#     restart: 'no'
+#     environment:
+#         - WATCHTOWER_CLEANUP=true
+#         - WATCHTOWER_NO_STARTUP_MESSAGE=true
+#         - WATCHTOWER_NOTIFICATIONS_LEVEL=info
+#         - WATCHTOWER_INCLUDE_STOPPED=true
+#         - WATCHTOWER_NOTIFICATIONS=email
+#         - WATCHTOWER_NOTIFICATION_EMAIL_FROM=REDACT
+#         - WATCHTOWER_NOTIFICATION_EMAIL_TO=REDACT
+#         - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
+#         - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
+#         - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=REDACT
+#         - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=REDACT
+#         - WATCHTOWER_NOTIFICATION_EMAIL_DELAY=2
+#         - WATCHTOWER_NOTIFICATION_EMAIL_SUBJECTTAG=NUC
+#     #command: --schedule "00 00 12 * * *"
+#     command: --run-once
+# adguard:
+#     container_name: adguard
+#     image: adguard/adguardhome:latest
+#     user: '99'
+#     #logging:
+#     #    driver: none
+#     volumes:
+#         - /etc/localtime:/etc/localtime:ro
+#         - /opt/adguard:/opt/adguardhome/conf
+#         - /opt/adguard/work:/opt/adguardhome/work
+#     ports:
+#         - 53:5353/tcp
+#         - 53:5353/udp
+#         - 8088:8080/tcp
+#     environment:
+#         - TZ=America/Chicago
+#     restart: 'always'
+# librespeed:
+#     image: linuxserver/librespeed
+#     container_name: librespeed
+#     ports:
+#         - 8880:80
+#     environment:
+#         - PASSWORD=password
+#         - TZ=America/Chicago
+#     restart: 'no'
+# ring-mqtt:
+#     container_name: ring-mqtt
+#     #image: tsightler/ring-mqtt
+#     image: tsightler/ring-mqtt:5.0.2
+#     restart: 'always'
+#     user: '99'
+#     ports:
+#         - 8554:8554
+#     environment:
+#         - TZ=America/Chicago
+#         - S6_READ_ONLY_ROOT=1
+#         - MQTTHOST=10.0.1.22
+#         # docker run -it --rm --entrypoint /app/ring-mqtt/node_modules/ring-client-api/ring-auth-cli.js tsightler/ring-mqtt
+#         - RINGTOKEN=TOKEN
+#         - ENABLEMODES=true
+#         - SNAPSHOTMODE=all
+#         - ENABLECAMERAS=true
+#     volumes:
+#         - '/opt/ring-mqtt:/data'
+#         #- type: tmpfs
+#         #  target: /run
+# tailscale:
+#     container_name: tailscale
+#     volumes:
+#         - '/var/lib:/var/lib'
+#         - '/dev/net/tun:/dev/net/tun'
+#     network_mode: host
+#     privileged: true
+#     image: tailscale/tailscale
+#     entrypoint: tailscaled
+# cloudflared:
+#     container_name: cloudflared
+#     image: cloudflare/cloudflared:latest
+#     restart: 'always'
+#     network_mode: host
+#     environment:
+#         - TZ=America/Chicago
+#     volumes:
+#         - /opt/cloudflared/:/home/nonroot/.cloudflared/
+#     command: tunnel run nuc
+# github-runner-1:
+#     container_name: github-runner-1
+#     image: myoung34/github-runner:latest
+#     restart: 'always'
+#     environment:
+#         RUNNER_NAME: nuc-runner
+#         ACCESS_TOKEN: XXXX
+#         REPO_URL: https://github.com/aneisch/thermostat_api_server_docker
+#         RUNNER_WORKDIR: /tmp/runner/work
+#         LABELS: linux,x64,self-hosted
+#     security_opt:
+#         - label:disable
+#     volumes:
+#         - '/var/run/docker.sock:/var/run/docker.sock'
+#         - '/tmp/runner-1:/tmp/runner'
+# github-runner-2:
+#     container_name: github-runner-2
+#     image: myoung34/github-runner:latest
+#     restart: 'always'
+#     environment:
+#         RUNNER_NAME: nuc-runner-2
+#         ACCESS_TOKEN: XXXX
+#         REPO_URL: https://github.com/aneisch/home-assistant-config
+#         RUNNER_WORKDIR: /tmp/runner/work
+#         LABELS: linux,x64,self-hosted
+#     security_opt:
+#         - label:disable
+#     volumes:
+#         - '/var/run/docker.sock:/var/run/docker.sock'
+#         - '/tmp/runner-2:/tmp/runner'
